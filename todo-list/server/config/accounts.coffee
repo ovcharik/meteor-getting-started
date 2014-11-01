@@ -14,4 +14,5 @@ Accounts.onCreateUser (options = {}, user) ->
   u = UsersCollection._transform(user)
   options.profile ||= {}
   options.profile.avatar = Gravatar.imageUrl(u.getEmail())
+  options.profile.service = _(user.services).keys()[0] if user.services
   _.extend user, options
