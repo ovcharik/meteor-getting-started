@@ -9,3 +9,9 @@ _.deepExtend Accounts.emailTemplates, emailTemplates
 # Включаем верификацию
 Accounts.config
   sendVerificationEmail: true
+
+Accounts.onCreateUser (options = {}, user) ->
+  u = UsersCollection._transform(user)
+  options.profile ||= {}
+  options.profile.avatar = Gravatar.imageUrl(u.getEmail())
+  _.extend user, options
