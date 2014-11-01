@@ -8,8 +8,13 @@ autopublish
 insecure
 coffeescript
 mquandalle:jade
-mizzao:bootstrap-3
 iron:router
 less
 chrismbeckett:fontawesome4
-
+accounts-base
+accounts-password
+accounts-github
+accounts-google
+mizzao:bootstrap-3
+ian:accounts-ui-bootstrap-3
+email

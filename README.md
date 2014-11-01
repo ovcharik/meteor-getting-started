@@ -60,12 +60,12 @@
 
 Если у вас такой же результат как и у меня, значит минимальное окружение для разработки метеор проекта готово, если же что-то пошло не так - проверьте корректность установки `nodejs`, `mongodb` и `meteor`, например, у меня на компьютере сейчас следующая конфигурация:
 
->    $ node -v
->    v0.10.33
->    $ mongod --version
->    db version v2.4.12
->    $ meteor --version
->    Meteor 1.0
+    $ node -v
+    v0.10.33
+    $ mongod --version
+    db version v2.4.12
+    $ meteor --version
+    Meteor 1.0
 
 На данном этапе мы закончим с формальностями и приступим к разработке нашего туду листа. Для удобства рекомендую открыть новую вкладку консоли, так как перезапускать наше метеор приложение больше не потребуется, но будем использовать консольный интерфейс фреймворка для установки пакетов.
 
@@ -258,12 +258,12 @@ body {
 ```jade
 //- client/layouts/application.jade
 //- ...
-      #navbar.collapse.navbar-collapse
-        ul.nav.navbar-nav
-          li
-            a(href='/') Home
-          li
-            a(href='/about') About
+#navbar.collapse.navbar-collapse
+  ul.nav.navbar-nav
+    li
+      a(href='/') Home
+    li
+      a(href='/about') About
 ```
 
 Создаем контроллеры в папке клиентских роутеров, пока это будут просто заглушки
@@ -309,3 +309,106 @@ template(name='about')
 ![base_routing](https://raw.githubusercontent.com/ovcharik/meteor-getting-started/master/images/base_routing.png)
 
 > По ходу разработки данного урока я попытаюсь все изменения в коде вносить в репозиторий, в соответствии последовательности изложения, что бы вы могли проследить весь процесс, так как в посте некоторые вещи могут быть пропущены. [Репозитарий](https://github.com/ovcharik/meteor-getting-started/commits/master).
+
+## Пользователи и аутентификация
+
+Многие технические задания, приходящие к нам в компанию, первой задачей описывают систему пользователей. Так как это довольно распространенная задача, считаю необходимым и в нашем уроке рассмотреть способы аутентификации пользователей, тем более метеор для этого предоставляет стандартные средства.
+
+Мы не будем сильно углубляться в механизмы, а просто используем готовые решения, которые позволят нам создавать пользователей через логин/пароль и авторизацию через сервисы `google` и `github`. Я привык в рельсах настраивать связку `devise` и `omniauth` парой генераторов и несколькими строчками в конфиге. Так вот метеор мало того, что предоставляет это из коробки, так еще и настройка сервисов происходит максимально просто.
+
+Установим следующие пакеты:
+
+* `accounts-base` - базовый пакет для пользователей приложения на метеоре;
+* `accounts-password`, `accounts-github`, `accounts-google` - добавим поддержку для аутентификации через логин/пароль и сервисов `github` и `google`;
+* `ian:accounts-ui-bootstrap-3` - пакет для упрощения интеграции аккаунтов в приложение на бутстрапе.
+
+Пакет `ian:accounts-ui-bootstrap-3` нам позволит одной строчкой добавить форму аутентификации/регистрации в приложение, а также предоставит интерфейс к настройке сторонних сервисов. [Сам проект](https://github.com/ianmartorell/meteor-accounts-ui-bootstrap-3/), там есть небольшая документация и скриншоты того как выглядит интеграция формы и настройка сервисов.
+
+Модифицируем нашу шапку
+
+```jade
+//- client/layouts/application.jade
+//- ...
+#navbar.collapse.navbar-collapse
+  ul.nav.navbar-nav
+    li
+      a(href='/') Home
+    li
+      a(href='/about') About
+  ul.nav.navbar-nav.navbar-right
+    +loginButtons
+```
+
+И получим следующий результат
+
+![base_auth_form](https://raw.githubusercontent.com/ovcharik/meteor-getting-started/master/images/base_auth_form.png)
+
+После конфигурации можем убедиться, что в токены авторизации сохранились.
+
+    $ meteor mongo
+    MongoDB shell version: 2.4.9
+    connecting to: 127.0.0.1:3001/meteor
+    meteor:PRIMARY> show collections
+    meteor_accounts_loginServiceConfiguration
+    meteor_oauth_pendingCredentials
+    system.indexes
+    users
+    meteor:PRIMARY> db.meteor_accounts_loginServiceConfiguration.find()
+    {
+      "service" : "github",
+      "clientId" : "<id>",
+      "secret" : "<secret>",
+      "_id" : "AjKrfCXAioLs7aBTN"
+    }
+    {
+      "service" : "google",
+      "clientId" : "<id>",
+      "secret" : "<secret>",
+      "_id" : "HaERjHLYmAAhehskY"
+    }
+
+Сконфигурируем нашу систему пользователей, так как я хочу настроить верификацию адреса электронной почты, необходимо настроить `smtp`, кстати для отправки email используется пакет `email`. Он не входит в стандартный набор метеора, поэтому его необходимо установить вручную, если вам нужна работа с почтой.
+
+```coffeescript
+# server/config/smtp/coffee
+smtp =
+  username: "meteor-todo-list@yandex.ru"
+  password: "meteor-todo-list1234"
+  server:   "smtp.yandex.ru"
+  port:     "587"
+
+# Экранируем символы
+_(smtp).each (value, key) -> smtp[key] = encodeURIComponent(value)
+
+# Шаблон url доступа к smtp
+url = "smtp://#{smtp.username}:#{smtp.password}@#{smtp.server}:#{smtp.port}"
+
+# Задаем переменную окружения, метеор будет использовать данные из нее
+process.env.MAIL_URL = url
+```
+
+И сконфигурируем аккаунты, что бы метеор запрашивал подтверждение адреса электронной почты.
+
+```coffeescript
+# server/config/accounts.coffee
+emailTemplates =
+  from: 'TODO List <meteor-todo-list@yandex.ru>'
+  siteName: 'Meteor. TODO List.'
+
+# Заменяем стандартные настройки для почты
+_.deepExtend Accounts.emailTemplates, emailTemplates
+
+# Включаем верификацию
+Accounts.config
+  sendVerificationEmail: true
+```
+
+В нашем приложении не будет возможности подключать несколько сервисов к одному аккаунту, так как это требует тонкой настройки. Возможно скоро в метеоре проработают данный момент, но пока существует готовое, более менее нормальное, решение `mondora:connect-with`, но оно еще сырое. Можно попытаться самим мержить аккаунты, в этом нет ничего сложного, и в сети есть множество примеров и других решений: [раз](https://atmospherejs.com/mondora/connect-with), [два](http://www.meteorpedia.com/read/Merging_OAuth_accounts), [три](http://stackoverflow.com/questions/18358007/using-meteor-accounts-package-to-link-multiple-services).
+
+Также по аккаунтам есть подробная [документация](https://docs.meteor.com/#/full/accounts_api), мы всего лишь поставили пакеты и видим магию, но под капотом это происходит не многим сложнее.
+
+Следующим шагом мы займемся страницей пользователя, но прежде чем преступить необходимо рассмотреть как реализованы некоторые вещи в метеоре.
+
+> Не стоит меня сильно пинать, за то что так поверхностно рассмотрел систему аккаунтов, просто хотел показать что в ней нет ничего сложного. На подробное рассмотрение потребуется отдельный пост. А мы в уроке создали необходимый базовый функционал и можем продолжить идти к конечному результату.
+
+# Коллекции, публикации, подписки и безопасность данных.
