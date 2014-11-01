@@ -6,7 +6,9 @@
 meteor-platform
 autopublish
 insecure
-less
 coffeescript
 mquandalle:jade
+mizzao:bootstrap-3
+iron:router
+less
 
