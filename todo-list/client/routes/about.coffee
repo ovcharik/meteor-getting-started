@@ -1,9 +1,7 @@
 # client/routers/about.coffee
-Router.route '/about',
-  name: 'about'
-  controller: AboutController
-
-class AboutController extends RouteController
+Router.route '/about', name: 'about'
+class @AboutController extends RouteController
 
   action: ->
+    console.log 'About Controller'
     super()

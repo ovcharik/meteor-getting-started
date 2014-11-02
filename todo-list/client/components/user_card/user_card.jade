@@ -1,0 +1,17 @@
+//- client/components/user_card.jade
+template(name='userCard')
+  .panel.panel-default
+    .panel-body
+      .pull-left
+        img( src="{{getAvatar 80}}", alt='' )
+
+      .user-card-info-block
+        if isFromGithub
+          i.fa.fa-github
+        else if isFromGoogle
+          i.fa.fa-google
+        b= profile.name
+        br
+        +each emails
+          = address
+          br

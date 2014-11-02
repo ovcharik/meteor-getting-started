@@ -21,5 +21,9 @@ Users.helpers
       r: 'g'
     url + "?" + $.param(options)
 
+  isFromGithub:   -> @profile?.service == 'github'
+  isFromGoogle:   -> @profile?.service == 'google'
+  isFromPassword: -> @profile?.service == 'password'
+
 # Экспорт коллекции
 @UsersCollection = Users
