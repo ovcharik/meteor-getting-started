@@ -1,4 +1,9 @@
 //- client/components/editable_field/editable_field.jade
+//- вот тут солянка из вызовов хелперов
+//- и обращений к данным контекста, кстати если имя хелпера
+//- и свойства в текущем контексте совпадают
+//- то предпочтение отдается хелперу
+//- обратиться явно к контексту можно через this.<key>
 template(name='editableField')
   .form-group.EditableFiled
     if data.isEditable
@@ -8,13 +13,14 @@ template(name='editableField')
             if icon
               i.fa.fa-fw(class='fa-{{icon}}')
             else
-              i.fa.fa-fw=iconText
+              i.fa.fa-fw=iconSymbol
         input.Field.form-control(placeholder=placeholder, value=value, name=name)
     else
-      span.form-control-static
-        if hasIcon
-          if icon
-            i.fa.fa-fw(class='fa-{{icon}}')
-          else
-            =iconText
-        = value
+      if defaultValue
+        span.form-control-static
+          if hasIcon
+            if icon
+              i.fa.fa-fw(class='fa-{{icon}}')
+            else
+              i.fa.fa-fw=iconSymbol
+          = defaultValue

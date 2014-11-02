@@ -337,6 +337,8 @@ template(name='about')
     li
       a(href='/about') About
   ul.nav.navbar-nav.navbar-right
+    //- шаблон кнопки авторизации пользователя
+    //- идет в пакете ian:accounts-ui-bootstrap-3
     +loginButtons
 ```
 
@@ -437,7 +439,7 @@ Accounts.onCreateUser (options = {}, user) ->
 
 С голыми данными не очень приятно работать, хотелось бы добавить бизнес-логику в объекты коллекции, это можно сделать при помощи функции `_transform` у коллекции, в которую передаются объекты после получения их с сервера и там их уже можно обработать, однако чтобы не вникать в эти тонкости, можно воспользоваться пакетом `dburles:collection-helpers`, который к коллекции добавляет метод `helpers`, куда можно передать объект, от которого будут наследоваться все данные.
 
-Установим пакет, и напишем методы для обновления данных о пользователе. Также при создании пользователя мы добавили вычисляемое поле с хешем аватара пользователя в сервисе [Gravatar](http://ru.gravatar.com/) - добавим метод который сможет возвращать эту ссылку с некоторыми параметрами. Еще добавим методы для проверки сервиса регистрации пользователя и методы возвращающие различную публичную информацию.
+Установим пакет, и напишем методы для обновления данных о пользователе. Также при создании пользователя мы добавили вычисляемое поле с хешем аватара пользователя в сервисе [Gravatar](http://ru.gravatar.com/) - добавим метод который сможет возвращать ссылку на изображение с некоторыми параметрами. Еще добавим методы для проверки сервиса регистрации пользователя и методы возвращающие различную публичную информацию.
 
 ```coffeescript
 # collections/users.coffee
@@ -645,7 +647,7 @@ Template.nextPageButton.events
       ctrl.incLimit(@name, @perPage)
 ```
 
-Здесь мы для компонента уже задаем некоторую логику. Как можно заметить все шаблоны складываются в глобальное пространство имен `Template`. Обратится к шаблону мы можем через `Template.<template-name>`. Для описания методов используемых в шаблоне нужно использовать метод `helpers`, куда передается объект с методами. В данном примере мы описываем лишь один метод `loaded`, который проверяет, что из себя представляет текущий контроллер и отдает результат, показывающий все ли данные были загружены. В самом шаблоне мы дергаем этот метод в конструкции `unless loaded`, также в шаблоне можно забирать данные текущего контекста, чуть позже рассмотрим как это происходит на примере.
+Здесь мы для компонента уже задаем некоторую логику. Как можно заметить все шаблоны складываются в глобальное пространство имен `Template`. Обратится к шаблону мы можем через `Template.<template-name>`. Для описания методов используемых в шаблоне нужно использовать метод `helpers`, куда передается объект с методами. В данном примере мы описываем лишь один метод `loaded`, который проверяет, что из себя представляет текущий контроллер и отдает результат, показывающий все ли данные были загружены. В самом шаблоне мы дергаем этот метод в конструкции `unless loaded`, также в шаблоне можно забирать данные из текущего контекста. Хелперы шаблона можно сравнить с прототипом объекта, при использовании их в шаблоне, но внутри самой функции есть ограничения, так как каждый хелпер вызывается примерно так `<helper-func>.apply(context, arguments)`, то есть у нас нет возможности обратится ко всем хелперам шаблона, внутри функции, что в общем-то грустно.
 
 Для обработки событий шаблона, нужно их описать в методе `events`, куда передается объект, с ключами следующего формата `<event> <selector>`. В обработчик передается `jQuery` событие и шаблон, в котором было вызвано событие, так как мы можем обрабатывать дочерние события в родительском шаблоне, это иногда может оказаться полезным.
 
@@ -785,3 +787,208 @@ template(name='userCard')
 
 ![users_log](https://raw.githubusercontent.com/ovcharik/meteor-getting-started/master/images/users_log.png)
 
+## Страница пользователя и еще немного о шаблонах
+
+Давайте создадим страницу пользователя, где будет возможность изменять некоторые данные и завершим на этом работу с пользователями, чтобы можно было перейти к созданию собственных коллекций.
+
+Для этого первым делом для авторизованного пользователя вместо домашней страницы будем показывать страницу текущего пользователя, модифицируем немного контроллер.
+
+```coffeescript
+# client/routers/home.coffee
+Router.route '/', name: 'home'
+class @HomeController extends PagableRouteController
+
+  # авторизован ли пользователь?
+  isUserPresent: ->
+    !!Meteor.userId()
+
+  # подписываемся на профайл если пользователь авторизован
+  # на сайте
+  waitOn: ->
+    if @isUserPresent()
+      @subscribe 'profile'
+
+  # возвращаем данные о текущем пользователе, если такой имеется
+  data: ->
+    if @isUserPresent()
+      { user: UsersCollection.findOne Meteor.userId() }
+
+  # рендерим шаблон профайла если пользователь авторизован
+  # и домашнюю страницу в противном случае
+  action: ->
+    if @isUserPresent()
+      @render 'profile'
+    else
+      super()
+```
+
+И также создадим контроллер, в котором можно будет просматривать профиль любого пользователя.
+
+```coffeescript
+# client/routers/user_show.coffee
+Router.route '/users/:id', name: 'users_show'
+class @UsersShowController extends PagableRouteController
+
+  # используем уже готовый шаблон
+  template: 'profile'
+
+  # подписываемся на нужного пользователя
+  waitOn: ->
+    @subscribe 'user', @params.id
+
+  # ищем нужного пользователя
+  data: ->
+    user: UsersCollection.findOneUser(@params.id)
+```
+
+Для удобства поиска пользователей либо по идентификатору, либо по логину я создал дополнительные методы в коллекции: один возвращает курсор, второй данные.
+
+```coffeescript
+# collections/users.coffee
+# ...
+_.extend Users,
+  # ...
+  findUser: (id, options) ->
+    Users.find { $or: [ { _id: id }, { username: id } ] }, options
+
+  findOneUser: (id, options) ->
+    Users.findOne { $or: [ { _id: id }, { username: id } ] }, options
+```
+
+Данные для страницы пользователя получить пытаемся, а они не опубликованы, исправляем это.
+
+```coffeescript
+# server/publications/user.coffee
+Meteor.publish 'user', (id) ->
+  UsersCollection.findUser id,
+    fields:
+      service: 1
+      username: 1
+      profile: 1
+    limit: 1
+```
+
+Почти все готово, создадим шаблон и посмотрим на результат. При создании шаблона я решил создать компонент, который, в зависимости от прав доступа, будет давать возможность редактировать поле модели, он нам пригодится еще несколько раз.
+
+```jade
+//- client/components/editable_field/editable_field.jade
+//- вот тут солянка из вызовов хелперов
+//- и обращений к данным контекста, кстати если имя хелпера
+//- и свойства в текущем контексте совпадают
+//- то предпочтение отдается хелперу
+//- обратиться явно к контексту можно через this.<key>
+template(name='editableField')
+  .form-group.EditableFiled
+    if data.isEditable
+      div(class=inputGroupClass)
+        if hasIcon
+          .input-group-addon
+            if icon
+              i.fa.fa-fw(class='fa-{{icon}}')
+            else
+              i.fa.fa-fw=iconSymbol
+        input.Field.form-control(placeholder=placeholder, value=value, name=name)
+    else
+      if defaultValue
+        span.form-control-static
+          if hasIcon
+            if icon
+              i.fa.fa-fw(class='fa-{{icon}}')
+            else
+              i.fa.fa-fw=iconSymbol
+          = defaultValue
+```
+
+Для интерполяции переменных в тексте, в шаблонах, можно использовать усатые конструкции: `class='fa-{{icon}}'`, `icon` - это переменная.
+
+```coffeescript
+# client/components/editable_field/editable_field.coffee
+Template.editableField.helpers
+  value: ->
+    ObjAndPath.valueFromPath @data, @path
+
+  name: ->
+    ObjAndPath.nameFromPath @scope, @path
+
+  hasIcon: ->
+    @icon || @iconSymbol
+
+  inputGroupClass: ->
+    (@icon || @iconSymbol) && 'input-group' || ''
+
+Template.editableField.events
+  # кидаем событие выше, при изменении данных в инпуте
+  'change .Field': (event, template) ->
+    data  = $(event.target).serializeJSON()
+    $(template.firstNode).trigger 'changed', [data]
+```
+
+```jade
+//- client/components/profile/profile.jade
+template(name='profile')
+  //- смена контекста, и блок внутри не будет отрендерен,
+  //- если такого свойства нет
+  +with user
+    .profile-left-side
+      .panel.panel-default
+        .panel-body
+          .container-fluid
+            .row.row-bottom
+              //- аватар пользователя, параметром передаем конструкции
+              //- вида <ключ>=<значение>, которые сложатся в один объект
+              //- и станут контекстом шаблона userAvatar
+              +userAvatar user=this size=200 class='profile-left-side-avatar'
+            .row
+              //- редактируемые поля для текущего пользователя
+              +editableField fieldUsername
+              +editableField fieldName
+              +editableField fieldEmail
+
+  .profile-right-side
+    h1 Boards
+```
+
+```coffeescript
+# client/components/profile/profile.coffee
+Template.profile.helpers
+  fieldUsername: ->
+    data:         @
+    defaultValue: @getUsername()
+    placeholder: 'Username'
+    scope:       'user'
+    path:        'username'
+    iconSymbol:  '@'
+
+  fieldName: ->
+    data:         @
+    defaultValue: @getName()
+    placeholder: 'Name'
+    scope:       'user'
+    path:        'profile.name'
+    icon:        'user'
+
+  fieldEmail: ->
+    data:         @
+    defaultValue: @getPublicEmail()
+    placeholder: 'Public email'
+    scope:       'user'
+    path:        'prfile.email'
+    icon:        'envelope'
+
+Template.profile.events
+  # отлавливаем изменения в редактируемых полях
+  # и обновляем пользователя
+  'changed .EditableFiled': (event, template, data) ->
+    user = template.data?.user
+    return unless user
+    data = data.user
+    user.merge data
+```
+
+Как мне кажется верстка метеоровских шаблонов в `jade`, достаточно семантична, не нужно задумываться о многих вещах и читать кучу документации, все и так достаточно очевидно. Но если у вас возникли проблемы с пониманием кода выше, советую полистать документацию к пакету [mquandalle:jade](https://atmospherejs.com/mquandalle/jade) и [spacebars](https://atmospherejs.com/meteor/spacebars). Просто у меня при знакомстве с версткой шаблонов в метеоре проблем не возникало, считаю, что они их, в самом деле, сделали очень удобными.
+
+В общем все готово, открывайте форму аутентификации в шапке, входите в систему, и вместо заголовка "Home" на странице сразу же отобразится ваш профайл, без всяких перезагрузок.
+
+![profile](https://raw.githubusercontent.com/ovcharik/meteor-getting-started/master/images/profile.png)
+
+Если вам что-то не понятно до текущего момента, то советую ознакомится с текущим состоянием проекта в [репозитарии](https://github.com/ovcharik/meteor-getting-started/tree/b1067c219e591de6d6eb387d10a107cfff180e69/todo-list), я старался комментировать в файлах все происходящее, также возможно стоит еще раз полистать написанное выше, может не совсем последовательно, но я старался уделить внимание всем ключевым моментам, и конечно же можно склонировать проект, на данном этапе и пощупать его руками. Дальше я собираюсь затронуть еще несколько тем: как создавать свои собственные коллекции, как можно защищать данные в коллекциях от нежелательного редактирования, расскажу немного про использование RPC и использование библиотек `npm` на сервере.

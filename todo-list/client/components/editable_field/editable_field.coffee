@@ -1,18 +1,19 @@
 # client/components/editable_field/editable_field.coffee
 Template.editableField.helpers
   value: ->
-    Blaze._globalHelpers.valueFromPath @data, @path
+    ObjAndPath.valueFromPath @data, @path
 
   name: ->
-    Blaze._globalHelpers.nameFromPath @scope, @path
+    ObjAndPath.nameFromPath @scope, @path
 
   hasIcon: ->
-    @icon || @iconText
+    @icon || @iconSymbol
 
   inputGroupClass: ->
-    (@icon || @iconText) && 'input-group' || ''
+    (@icon || @iconSymbol) && 'input-group' || ''
 
 Template.editableField.events
+  # кидаем событие выше, при изменении данных в инпуте
   'change .Field': (event, template) ->
     data  = $(event.target).serializeJSON()
     $(template.firstNode).trigger 'changed', [data]
