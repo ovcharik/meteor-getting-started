@@ -64,6 +64,7 @@ oauth2@1.1.1
 oauth@1.1.2
 observe-sequence@1.0.3
 ordered-dict@1.0.1
+ovcharik:alertifyjs@0.9.0
 random@1.0.1
 reactive-dict@1.0.4
 reactive-var@1.0.3

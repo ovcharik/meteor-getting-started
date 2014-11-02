@@ -1,0 +1,22 @@
+//- client/components/profile/profile.jade
+template(name='profile')
+  +with user
+    .profile-left-side
+      .panel.panel-default
+        .panel-body
+          .container-fluid
+            .row.row-bottom
+              //- аватар пользователя
+              +userAvatar user=this size=200 class='profile-left-side-avatar'
+            .row
+              //- радактируемые поля для текущего пользователя
+              +editableField data=this scope='user' placeholder='Username'     path='username'      iconText='@'
+              +editableField data=this scope='user' placeholder='Name'         path='profile.name'  icon='user'
+              +editableField data=this scope='user' placeholder='Public email' path='profile.email' icon='envelope'
+
+  .profile-right-side
+    h1 Boards
+
+//- добавим ссылку на профиль текущего пользователя в меню в шапке
+template(name='_loginButtonsAdditionalLoggedInDropdownActions')
+  a.btn.btn-default.btn-block(href='/profile') Profile

@@ -9,9 +9,9 @@
 И еще одно предупреждение: в данном уроке будут использоваться
 следующие технологии для непосредственного написания примера:
 
-* `jade` - html препроцессор;
-* `less` - css препроцессор;
-* `coffeescript` - язык программирования, компилируемый в javascript.
+* [jade](http://jade-lang.com/) - html препроцессор;
+* [less](http://lesscss.org/) - css препроцессор;
+* [coffeescript](http://coffeescript.org/) - язык программирования, компилируемый в javascript.
 
 Небольшая затравка в виде скриншота приложения, полученного в ходе урока
 
@@ -396,12 +396,25 @@ emailTemplates =
   from: 'TODO List <meteor-todo-list@yandex.ru>'
   siteName: 'Meteor. TODO List.'
 
-# Заменяем стандартные настройки для почты
+# заменяем стандартные настройки для почты
 _.deepExtend Accounts.emailTemplates, emailTemplates
 
-# Включаем верификацию
+# включаем верификацию
 Accounts.config
   sendVerificationEmail: true
+
+# добавляем кастомную логику при регистрации пользователей
+Accounts.onCreateUser (options = {}, user) ->
+  u = UsersCollection._transform(user)
+  options.profile ||= {}
+  # сохраняем хеш адреса, чтобы можно было получит аватар для пользователя
+  # у которого не указан публичный адрес почты
+  options.profile.emailHash = Gravatar.hash(u.getEmail() || "")
+  # запоминаем сервис, через который пользователь зарегистрировался
+  options.service = _(user.services).keys()[0] if user.services
+  # сохраняем дополнительные параметры и возвращаем объект,
+  # который запишется в бд
+  _.extend user, options
 ```
 
 В нашем приложении не будет возможности подключать несколько сервисов к одному аккаунту, так как это требует тонкой настройки. Возможно скоро в метеоре проработают данный момент, но пока существует готовое, более менее нормальное, решение `mondora:connect-with`, но оно еще сырое. Можно попытаться самим мержить аккаунты, в этом нет ничего сложного, и в сети есть множество примеров и других решений: [раз](https://atmospherejs.com/mondora/connect-with), [два](http://www.meteorpedia.com/read/Merging_OAuth_accounts), [три](http://stackoverflow.com/questions/18358007/using-meteor-accounts-package-to-link-multiple-services).
@@ -412,7 +425,7 @@ Accounts.config
 
 Следующим шагом мы займемся страницей пользователя, но прежде чем преступить необходимо рассмотреть как реализованы некоторые вещи в метеоре.
 
-# Коллекции, публикации, подписки и защита данных.
+# Коллекции, публикации и подписки.
 
 При создании проекта, автоматически были добавлены два пакета `autopublish` и `insecure`, так вот сейчас самое время от них избавиться, так как они предоставляет пользователю безграничный доступ ко всем коллекциям в бд, и их можно использовать только для прототипирования. Удаляются пакеты командой
 
@@ -424,31 +437,88 @@ Accounts.config
 
 С голыми данными не очень приятно работать, хотелось бы добавить бизнес-логику в объекты коллекции, это можно сделать при помощи функции `_transform` у коллекции, в которую передаются объекты после получения их с сервера и там их уже можно обработать, однако чтобы не вникать в эти тонкости, можно воспользоваться пакетом `dburles:collection-helpers`, который к коллекции добавляет метод `helpers`, куда можно передать объект, от которого будут наследоваться все данные.
 
-Установим пакет, и напишем метод возвращающий `email` в зависимости от сервиса, используемого при регистрации. Также при создании пользователя [я добавил](https://github.com/ovcharik/meteor-getting-started/blob/master/todo-list/server/config/accounts.coffee#L13) вычисляемое поле с ссылкой на аватар пользователя в сервисе [Gravatar](http://ru.gravatar.com/) - добавим метод который сможет возвращать эту ссылку с некоторыми параметрами.
+Установим пакет, и напишем методы для обновления данных о пользователе. Также при создании пользователя мы добавили вычисляемое поле с хешем аватара пользователя в сервисе [Gravatar](http://ru.gravatar.com/) - добавим метод который сможет возвращать эту ссылку с некоторыми параметрами. Еще добавим методы для проверки сервиса регистрации пользователя и методы возвращающие различную публичную информацию.
 
 ```coffeescript
 # collections/users.coffee
 Users = Meteor.users
 
+# статические методы и свойства
+_.extend Users,
+  # список полей доступных для редактирования
+  allowFieldsForUpdate: ['profile', 'username']
+
 # Добавляем методы и свойства в модель
 Users.helpers
+  # метод обновления пользователя, можно вызывать прямо на клиенте
+  update: (data) ->
+    Users.update @_id, data
+
+  # метод для обновления, который будет только устанавливать данные
+  # сразу позаботимся о запрещенных полях
+  set: (data) ->
+    d = {}
+    f = _(Users.allowFieldsForUpdate)
+    for key, value of data when f.include(key)
+      d[key] = value
+    @update $set: d
+
+  # метод мержить текущие данные с переданными,
+  # чтобы потом их можно было использовать для обновления
+  # и нечего не потерять
+  merge: (data) ->
+    current = @get()
+    @set _.deepExtend(current, data)
+
+  # получение только данных модели, все методы и свойства,
+  # указанные здесь находятся в прототипе
+  get: ->
+    r = {}
+    r[key] = @[key] for key in _(@).keys()
+    r
+
+  # список все адресов почты
   getEmails: ->
+    p = [@profile?.email]
     s = _(@services).map (value, key) -> value?.email
     e = _(@emails).map (value, key) -> value?.address
-    _.compact e.concat(s)
+    _.compact p.concat(e, s)
 
+  # основной адрес
   getEmail: ->
     @getEmails()[0]
 
-  getAvatar: (size = 200, def = 'identicon') ->
-    throw 'Only client method' if Meteor.isServer
-    durl = "http://www.gravatar.com/avatar/00000000000000000000000000000000"
-    url = @profile?.avatar || durl
+  # публичная информация
+  getUsername    : -> @username || @_id
+  getName        : -> @profile?.name || "Anonymous"
+  getPublicEmail : -> @profile?.email
+
+  urlData: ->
+    id: @getUsername()
+
+  # вычисляем ссылку на граватар, на основе адреса почты
+  # или хеша автоматически вычисленного при регистрации
+  getAvatar: (size) ->
+    size = Number(size) || 200
     options =
       s: size
-      d: def
+      d: 'identicon'
       r: 'g'
-    url + "?" + $.param(options)
+    hash = "00000000000000000000000000000000"
+    if email = @getPublicEmail()
+      hash = Gravatar.hash(email)
+    else
+      hash = @profile?.emailHash || hash
+    Gravatar.imageUrl hash, options
+
+  # проверка сервиса используемого при регистрации
+  isFromGithub:   -> @service == 'github'
+  isFromGoogle:   -> @service == 'google'
+  isFromPassword: -> @service == 'password'
+
+  # текущий пользователь может редактировать
+  # некоторые данные о себе
+  isEditable: -> @_id == Meteor.userId()
 
 # Экспорт коллекции
 @UsersCollection = Users
@@ -482,6 +552,7 @@ Users.helpers
 Meteor.publish 'users', (limit = 20) ->
   UsersCollection.find {},
     fields:
+      service: 1
       username: 1
       profile: 1
     limit: limit
@@ -494,13 +565,18 @@ Meteor.publish 'users', (limit = 20) ->
 ```coffeescript
 # server/publications/profile.coffee
 Meteor.publish 'profile', ->
+  # проверям авторизован ли пользователь,
+  # запрашивающий подписку
   if @userId
+    # подписываем на его запись в бд
     UsersCollection.find { _id: @userId },
       fields:
+        service: 1
         username: 1
         profile: 1
         emails: 1
   else
+    # просто говорим, что все готово
     @ready()
     return
 ```
@@ -516,7 +592,7 @@ Meteor.publish 'profile', ->
 ```coffeescript
 # lib/pageable_route_controller.coffee
 varName = (inst, name = null) ->
-  name = "_#{name}" if name
+  name = name && "_#{name}" || ""
   "#{inst.constructor.name}#{name}_limit"
 
 class @PagableRouteController extends RouteController
@@ -537,7 +613,7 @@ class @PagableRouteController extends RouteController
   resetLimit: (name = null) ->
     Session.set varName(@, name), null
 
-  # все ли данные были загружены?
+  # все ли данные были загруженны?
   loaded: (name = null) ->
     true
 ```
@@ -580,20 +656,27 @@ Template.nextPageButton.events
 Router.route '/users', name: 'users'
 class @UsersController extends PagableRouteController
 
+  # количество пользователей на одной странице
   perPage: 20
 
+  # подписываемся на коллекцию пользователей, с заданными лимитом,
+  # чтобы не получать лишние данные
+  # 
+  # подписка происходит через данный метод, чтобы iron:router
+  # не рендерил шаблон загрузки страницы, каждый раз при обновлении
+  # подписки
   subscriptions: ->
     @subscribe 'users', @limit()
 
+  # возвращаем всех пользователей из локальной коллекции
   data: ->
-    {
-      users: UsersCollection.find()
-      count: UsersCollection.find().count()
-    }
+    users: UsersCollection.find()
 
+  # все ли пользователи загружены?
   loaded: ->
     @limit() > UsersCollection.find().count()
 
+  # сбрасываем каждый раз лимит, при загрузки страницы
   onRun: ->
     @resetLimit()
     @next()
@@ -654,7 +737,13 @@ template( name='users' )
         //- в блоке each контекст меняется, поэтому мы
         //- можем не передавать в шаблон никаких параметров
         +userCard
+  //- кнопка загрузки следующей страницы
   +nextPageButton
+
+//- client/components/user_avatar/user_avatar.jade
+//- унифицируем шаблон аватара, возможно понадобится добавить логику
+template(name='userAvatar')
+  img(src="{{user.getAvatar size}}", alt=user.getUsername, class="{{class}}")
 
 //- client/components/user_card.jade
 //- в данном шаблоне используются данные пользователя
@@ -663,18 +752,29 @@ template(name='userCard')
   .panel.panel-default
     .panel-body
       .pull-left
-        img( src="{{getAvatar 80}}", alt='' )
+        +userAvatar user=this size=80
 
       .user-card-info-block
-        if isFromGithub
-          i.fa.fa-github
-        else if isFromGoogle
-          i.fa.fa-google
-        b= profile.name
-        br
-        +each emails
-          = address
-          br
+        ul.fa-ul
+          //- сервис и имя пользователя
+          li
+            if isFromGithub
+              i.fa.fa-li.fa-github
+            else if isFromGoogle
+              i.fa.fa-li.fa-google
+            else
+              i.fa.fa-li
+            b= getName
+          //- идентификатор либо логин
+          li
+            i.fa.fa-li @
+            //- ссылка на пользователя
+            a(href="{{ pathFor route='users_show' data=urlData }}")= getUsername
+          //- адрес почты, если указан
+          if getPublicEmail
+            li
+              i.fa.fa-li.fa-envelope
+              = getPublicEmail
 ```
 
 ![users_page](https://raw.githubusercontent.com/ovcharik/meteor-getting-started/master/images/users_page.png)
@@ -684,5 +784,4 @@ template(name='userCard')
 И чтобы убедиться в том, что данный подход работает оптимально, можно посмотреть логи браузера. Я установил количество пользователей на страницу равное одному. Протокол DDP достаточно простой и легко читаемый, поэтому не буду вдаваться в подробности. В логах можно просто увидеть, что все ненужные подписки были отписаны, а пользователи загрузились всего три раза, по одному на каждое обновление подписки.
 
 ![users_log](https://raw.githubusercontent.com/ovcharik/meteor-getting-started/master/images/users_log.png)
-
 

@@ -1,0 +1,20 @@
+//- client/components/editable_field/editable_field.jade
+template(name='editableField')
+  .form-group.EditableFiled
+    if data.isEditable
+      div(class=inputGroupClass)
+        if hasIcon
+          .input-group-addon
+            if icon
+              i.fa.fa-fw(class='fa-{{icon}}')
+            else
+              i.fa.fa-fw=iconText
+        input.Field.form-control(placeholder=placeholder, value=value, name=name)
+    else
+      span.form-control-static
+        if hasIcon
+          if icon
+            i.fa.fa-fw(class='fa-{{icon}}')
+          else
+            =iconText
+        = value

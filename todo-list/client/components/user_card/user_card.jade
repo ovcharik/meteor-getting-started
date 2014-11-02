@@ -1,17 +1,31 @@
 //- client/components/user_card.jade
+//- в данном шаблоне используются данные пользователя
+//- а также функции описанные в модели ранее
 template(name='userCard')
   .panel.panel-default
     .panel-body
       .pull-left
-        img( src="{{getAvatar 80}}", alt='' )
+        +userAvatar user=this size=80
 
       .user-card-info-block
-        if isFromGithub
-          i.fa.fa-github
-        else if isFromGoogle
-          i.fa.fa-google
-        b= profile.name
-        br
-        +each emails
-          = address
-          br
+        ul.fa-ul
+          //- сервис и имя пользователя
+          li
+            if isFromGithub
+              i.fa.fa-li.fa-github
+            else if isFromGoogle
+              i.fa.fa-li.fa-google
+            else
+              i.fa.fa-li
+            b= getName
+          //- идентификатор либо логин
+          li
+            i.fa.fa-li @
+            //- ссылка на пользователя
+            a(href="{{ pathFor route='users_show' data=urlData }}")= getUsername
+          //- адрес почты, если указан
+          if getPublicEmail
+            li
+              i.fa.fa-li.fa-envelope
+              = getPublicEmail
+

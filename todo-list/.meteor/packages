@@ -18,4 +18,6 @@ ian:accounts-ui-bootstrap-3
 email
 dburles:collection-helpers
 jparker:gravatar
+ovcharik:alertifyjs
+reactive-var
 

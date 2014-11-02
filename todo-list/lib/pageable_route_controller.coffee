@@ -1,6 +1,6 @@
 # lib/pageable_route_controller.coffee
 varName = (inst, name = null) ->
-  name = "_#{name}" if name
+  name = name && "_#{name}" || ""
   "#{inst.constructor.name}#{name}_limit"
 
 class @PagableRouteController extends RouteController
