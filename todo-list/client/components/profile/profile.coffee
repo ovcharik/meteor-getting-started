@@ -21,7 +21,7 @@ Template.profile.helpers
     defaultValue: @getPublicEmail()
     placeholder: 'Public email'
     scope:       'user'
-    path:        'prfile.email'
+    path:        'profile.email'
     icon:        'envelope'
 
 Template.profile.events
