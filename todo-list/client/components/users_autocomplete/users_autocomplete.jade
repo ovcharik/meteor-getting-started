@@ -1,0 +1,22 @@
+template(name='usersAutocomplete')
+  input(
+    id='{{id}}',
+    class='{{class}}',
+    placeholder='{{placeholder}}',
+
+    autocomplete='off'
+
+    data-source='search',
+    data-selected='selected',
+    data-autocompleted='autocompleted',
+    data-template='usersAutocompleteListItem'
+  )
+
+template(name='usersAutocompleteListItem')
+  .user-autocomplete-item
+    .user-autocomplete-avatar
+      +userAvatar user=this size=40
+    .user-autocomplete-info
+      .user-autocomplete-name= getName
+      .user-autocomplete-username= getUsername
+

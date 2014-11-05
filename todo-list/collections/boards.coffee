@@ -28,6 +28,10 @@ boardsSchema = SimpleSchema.build SimpleSchema.timestamp,
     type: String
     regEx: SimpleSchema.RegEx.Id
 
+  'background'      : { type: Object, optional: true }
+  'background.url'  : { type: String, optional: true }
+  'background.thumb': { type: String, optional: true }
+
 
 # регистрируем коллекцию и добавляем схему
 Boards = new Meteor.Collection 'boards'

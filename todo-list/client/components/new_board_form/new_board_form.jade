@@ -1,0 +1,26 @@
+//- client/components/new_board_form/new_board_form.jade
+template(name='newBoardForm')
+  //- панель с динамическими стилями
+  .panel.panel-default.new-board-panel(style='{{panelStyle}}')
+    .panel-body
+      h1 New board
+      form(action='#')
+        .form-group
+          input.form-control( type='text', placeholder='Board name', name='board[name]' )
+        .form-group
+          .form-users-avatars
+            //- выводим аватарки добавленых пользователей
+            //- и массив с пользователями, чтобы передать данные при созданни записи
+            +each boardFormUsers
+              +userAvatar user=this size=40 class='form-users-avatar'
+              input(type='hidden', name='board[users][]', value=_id)
+          //- поле для поиска пользователей со своим колбеком
+          +usersAutocomplete class='form-control' placeholder='Add users' selected=userSelected
+        .form-group
+          textarea.form-control( placeholder='Description', name='board[description]' )
+        .form-group
+          //- прячем инпут с файлом, но оставляем метку на этот инпут, для красоты
+          label.btn.btn-default(for='newBoardImage') Board image
+          .hide
+            input#newBoardImage(type='file', accept='image/*')
+        button.btn.btn-primary(type='submit') Submit

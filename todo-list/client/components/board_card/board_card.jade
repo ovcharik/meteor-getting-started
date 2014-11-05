@@ -1,6 +1,6 @@
 //- client/components/board_card/board_card.jade
 template(name='boardCard')
-  .panel.panel-default
+  .panel.panel-default.board-card-panel(style='{{panelStyle}}')
     .panel-heading.board-card-heading
       +linkTo route='boards_show' data=urlData
         = name

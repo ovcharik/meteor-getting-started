@@ -597,7 +597,7 @@ Meteor.publish 'profile', ->
 Мы для подписок будем использовать `iron:router`, и он будет контролировать весь необходимый процесс, так как для ручного управления за этим процессом придется следить за многим, а данная библиотека решает все проблемы. Данные желательно выдавать постранично, поэтому прежде чем создадим контроллер для пользователей, мы немного абстрагируемся и создадим класс, обладающий функционалом для управления страницами и который будет наследоваться от контроллера библиотеки `iron:router`.
 
 ```coffeescript
-# lib/pageable_route_controller.coffee
+# client/lib/0.pageable_route_controller.coffee
 varName = (inst, name = null) ->
   name = name && "_#{name}" || ""
   "#{inst.constructor.name}#{name}_limit"
@@ -609,12 +609,12 @@ class @PagableRouteController extends RouteController
 
   # количество загружаемых данных
   limit: (name = null) ->
-    Session.get(varName(@), name) || @perPage
+    Session.get(varName(@, name)) || @perPage
 
   # следующая страница
   incLimit: (name = null, inc = null) ->
     inc ||= @perPage
-    Session.set varName(@, name), (@limit() + inc)
+    Session.set varName(@, name), (@limit(name) + inc)
 
   # сборс количества
   resetLimit: (name = null) ->
@@ -1205,6 +1205,221 @@ Meteor.publish 'boards', (userId, limit = 20) ->
 
 Первым делом в зависимости от запроса мы достаем из базы нужные доски, после этого нам необходимо еще одним запросом достать пользователей. Методы `added`, `changed` и `removed` в контексте публикации могут управлять данными передаваемыми на клиент. Если мы в публикации возвращаем курсор коллекции, то эти методы будут вызываться автоматически в зависимости от состояния коллекции, поэтому мы и возвращаем курсор, но дополнительно в самой публикации подписываемся на изменения данных в коллекции досок, и высылаем на клиент данные о пользователях по мере необходимости.
 
-С помощью логов соединения по веб-сокетам либо при помощи [данной](https://github.com/arunoda/meteor-ddp-analyzer) утилиты, можно убедиться, что подобный подход будет работать оптимально. И тут важно понимать, что в нашем случае изменения в коллекции пользователей не будут синхронизироваться с клиентом, но так и задумывалось. Кстати для простого "джоина" можно просто возвращать массив на курсор.
+С помощью логов соединения по веб-сокетам либо при помощи [данной](https://github.com/arunoda/meteor-ddp-analyzer) утилиты, можно убедиться, что подобный подход будет работать оптимально. И тут важно понимать, что в нашем случае изменения в коллекции пользователей не будут синхронизироваться с клиентом, но так и задумывалось. Кстати для простого "джоина" можно просто возвращать массив курсоров в результате подписки.
 
-Для отображения досок пользователей, я добавил новые подписки в роутеры и заверстал необходимые шаблоны, но все эти моменты мы уже рассмотрели выше, если вам интересны все изменения, то их можно увидеть здесь.
+Для отображения досок пользователей, я добавил новые подписки в роутеры и заверстал необходимые шаблоны, но все эти моменты мы уже рассмотрели выше, если вам интересны все изменения, то их можно увидеть [здесь](https://github.com/ovcharik/meteor-getting-started/commit/548ae3c4a6b8a752fa07c69e21ac3da929e1a70e). А в итоге мы должны получить следующее, правда доски придется создавать через консоль, что бы проверить работоспособность.
+
+![boards](https://raw.githubusercontent.com/ovcharik/meteor-getting-started/master/images/boards.png)
+
+## Серверный Meteor
+
+Давайте для досок добавим возможность задавать фоновое изображение, для этого нам необходимо настроить сервер, чтобы он смог принимать файлы, обрабатывать их, сохранять и отдавать при запросе.
+
+### NPM
+
+Для обработки изображений я привык использовать [ImageMagick](http://www.imagemagick.org/), и для нода есть соответствующие пакеты, которые предоставляют интерфейс к данной библиотеке. Чтобы дать метеору возможность использовать `npm` пакеты нужно добавить `meteorhacks:npm`, после этого все необходимые пакеты можно описать в файле `packages.json`. Например мне нужен только пакет [gm](https://github.com/aheckmann/gm) и мой `packages.json` будет выглядеть следующим образом:
+
+```json
+{
+  "gm": "1.17.0"
+}
+```
+
+Все пакеты `npm` подключенные через `meteorhacks:npm` буду оборачиваться в один метеоровский пакет, поэтому при сборке приложения через команду `meteor build` не возникнет никаких проблем и все зависимости автоматически разрешаться.
+
+Подключать `npm` пакеты на сервере нужно через команду `Meteor.npmRequire(<pkg-name>)`, работает она также как и функция `require` в ноде.
+
+### RPC и синхронные вызовы асинхронных функций
+
+Для загрузки и обработки изображения создадим серверный метод, который можно будет вызывать с клиента.
+
+```coffeescript
+# server/lib/meteor.coffee
+Meteor.getUploadFilePath = (filename) ->
+  "#{process.env.PWD}/.uploads/#{filename}"
+
+# server/methods/upload_board_image.coffee
+# подключаем библиотеку для обработки изображения
+gm = Meteor.npmRequire 'gm'
+
+# ресайз и сохранение изображения
+resizeAndWriteAsync = (buffer, path, w, h, cb) ->
+  gm(buffer)
+  .options({imageMagick: true})
+  .resize(w, "#{h}^", ">")
+  .gravity('Center')
+  .crop(w, h, 0, 0)
+  .noProfile()
+  .write(path, cb)
+
+# делаем обработку изображения синхронной
+resizeAndWrite = Meteor.wrapAsync resizeAndWriteAsync
+
+# регистрируем метод для загрузки изображения к доске
+Meteor.methods
+  uploadBoardImage: (boardId, data) ->
+    board = BoardsCollection.findOne(boardId)
+    if board.owner != @userId
+      throw new Meteor.Error('notAuthorized', 'Not authorized')
+
+    data  = new Buffer data, 'binary'
+    name  = Meteor.uuid() # уникальное имя для изображения
+    path  = Meteor.getUploadFilePath name
+
+    resizeAndWrite data, "#{path}.jpg", 1920, 1080
+    resizeAndWrite data, "#{path}_thumb.jpg", 600, 400
+
+    # сохраняем данные к доске
+    BoardsCollection.update { _id: boardId },
+      $set:
+        background:
+          url:   "/uploads/#{name}.jpg"
+          thumb: "/uploads/#{name}_thumb.jpg"
+    return
+```
+
+В методе `uploadBoardImage` мы принимаем идентификатор доски, к которой добавляется изображение и строку с бинарными данными этого изображения.
+
+Если в методе будет брошено исключение, то оно передастся пользователю на клиент, первым параметром коллбека. А данные возвращенные методом придут на клиент вторым параметром коллбека.
+
+Чтобы можно было использовать исключения и возвраты функций при асинхронном стиле программирования, в серверной части метеора есть метод оборачивающий асинхронные функции в синхронные, через библиотеку [fibers](https://github.com/laverdet/node-fibers). Если в кратце, благодаря этой библиотеке, вызовы обернутых функций не будут занимать очередь выполнения, так что на сервере можно писать полностью синхронный код и не беспокоится о последствиях. Методом `Meteor.wrapAsync(<async-func>)` оборачиваются функции, которые последним параметром принимают коллбек. В этом коллбеке первым параметром должна идти ошибка, а вторым результат, такой формат параметров у всех стандартных библиотек в ноде. Если придет ошибка, то обернутая функция бросит исключение с этой ошибкой, иначе из функции вернется второй параметр переданный в коллбек.
+
+### Роутинг
+
+> Я понимаю, что для выдачи статики с сервера лучше использовать готовые и обкатанные решения по многим причинам, но тут я собираюсь отдавать статику нодом.
+
+В метеоре для серверного роутинга есть стандартный пакет [webapp](https://docs.meteor.com/#/full/webapp), но у нас уже установлено гораздо более удобное решение в виде `iron:router`. Аналогично, как и на клиенте, создадим серверный маршрут.
+
+```coffeescript
+# server/routes/uploads.coffee
+fs = Meteor.npmRequire 'fs'
+
+Router.route '/uploads/:file',
+  where: 'server'
+  action: ->
+    try
+      filepath = Meteor.getUploadFilePath(@params.file)
+      file = fs.readFileSync(filepath)
+      @response.writeHead 200, { 'Content-Type': 'image/jpg' }
+      @response.end file, 'binary'
+    catch e
+      @response.writeHead 404, { 'Content-Type': 'text/plain' }
+      @response.end '404. Not found.'
+```
+
+Здесь главное роуту передать свойство `where: 'server'`, иначе он не будет работать. В действии мы пытаемся считать с диска указанный файл, так как в этой директории будут только изображения одного формата, я максимально упростил данный метод.
+
+Объекты `request` и `response` доступные в контексте роута, это объекты классов из стандартной библиотеки нода [http.IncomingMessage](http://nodejs.org/api/http.html#http_http_incomingmessage) и [http.ServerResponse](http://nodejs.org/api/http.html#http_class_http_serverresponse) соответственно. 
+
+> В `iron:router` есть еще [интерфейс](https://github.com/EventedMind/iron-router/blob/devel/Guide.md#server-routing) для создания REST API.
+
+### Использование RPC
+
+Для использования давайте создадим форму добавления новой доски.
+
+> Тут я еще создал автокомплит для добавления пользователей к доске, там также используется RPC, подробнее с реализацией можно ознакомится в [репозитарии](https://github.com/ovcharik/meteor-getting-started).
+
+```jade
+//- client/components/new_board_form/new_board_form.jade
+template(name='newBoardForm')
+  //- панель с динамическими стилями
+  .panel.panel-default.new-board-panel(style='{{panelStyle}}')
+    .panel-body
+      h1 New board
+      form(action='#')
+        .form-group
+          input.form-control(type='text',placeholder='Board name',name='board[name]')
+        .form-group
+          textarea.form-control(placeholder='Description',name='board[description]')
+        .form-group
+          //- прячем инпут с файлом, но оставляем метку на этот инпут, для красоты
+          label.btn.btn-default(for='newBoardImage') Board image
+          .hide
+            input#newBoardImage(type='file', accept='image/*')
+        button.btn.btn-primary(type='submit') Submit
+```
+
+```coffeescript
+# client/components/new_board_form/new_board_form.coffee
+# переменные для текущего пользовательского изображения
+currentImage = null
+currentImageUrl = null
+currentImageDepend = new Tracker.Dependency
+
+# сброс пользовательского изображения
+resetImage = ->
+  currentImage = null
+  currentImageUrl = null
+  currentImageDepend.changed()
+
+# загрузка изображения на сервер
+uploadImage = (boardId) ->
+  if currentImage
+    reader = new FileReader
+    reader.onload = (e) ->
+      # вызов серверного метода
+      Meteor.call 'uploadBoardImage', boardId, e.target.result, (error) ->
+        if error
+          alertify.error error.message
+        else
+          alertify.success 'Image uploaded'
+    reader.readAsBinaryString currentImage
+
+# хелперы шаблона формы
+Template.newBoardForm.helpers
+  # задаем фоновое изображение для формы,
+  # функция будет вызываться автоматически, так как имеет зависимость
+  panelStyle: ->
+    currentImageDepend.depend()
+    currentImageUrl && "background-image: url(#{currentImageUrl})" || ''
+
+# данный колбек срабатывает каждый раз, когда форма рендерится на страницу
+Template.newBoardForm.rendered = ->
+  resetImage()
+
+# события формы
+Template.newBoardForm.events
+  # при отправки формы, мы создаем новую запись
+  # если все прошло хорошо, загружаем изображение,
+  # и сбрасываем форму
+  'submit form': (event, template) ->
+    event.preventDefault()
+    form = event.target
+    data = $(form).serializeJSON()
+    BoardsCollection.create data.board, (error, id) ->
+      if error
+        alertify.error error.message
+      else
+        form.reset()
+        alertify.success 'Board created'
+        resetUsers()
+        uploadImage(id)
+        resetImage()
+
+  # при выборе изображения меняем фон формы
+  # и запоминаем текущий выбор
+  'change #newBoardImage': (event, template) ->
+    files = event.target.files
+    image = files[0]
+    unless image and image.type.match('image.*')
+      resetImage()
+      return
+
+    currentImage = image
+
+    reader = new FileReader
+    reader.onload = (e) =>
+      currentImageUrl = e.target.result
+      currentImageDepend.changed()
+
+    reader.readAsDataURL(image)
+```
+
+Тут для загрузки и обработки изображения мы выполняем удаленный метод через `Meteor.call`. Как видно, вызов удаленный процедуры на клиенте, мало чем отличается от обычного вызова функции, а все данные, переданные аргументами, будут загружены на сервер по веб-сокету. Для чтения пользовательских файлов я воспользовался [File API](http://www.w3.org/TR/file-upload/) из спецификации HTML5.
+
+> Пример с загрузкой изображений возможно не самый удачный, но хорошо демонстрирует возможности серверной части метеора. Если вы пишете для продакшена, то можно воспользоваться готовым решением [CollectionFS](https://github.com/CollectionFS/Meteor-CollectionFS).
+
+![new_board](https://raw.githubusercontent.com/ovcharik/meteor-getting-started/master/images/new_board.png)
+
+* [Результат](http://hgsm-boards.meteor.com/), загрузка картинок там не заработала, толи дело в ImageMagick, толи в невозможности создать свою директорию для хранения
+* [Репозитарий](https://github.com/ovcharik/meteor-getting-started/tree/xxx/todo-list)

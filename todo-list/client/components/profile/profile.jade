@@ -17,6 +17,8 @@ template(name='profile')
               +editableField fieldUsername
               +editableField fieldName
               +editableField fieldEmail
+      if isHomePage
+        +newBoardForm
 
   .profile-right-side
     h1 Boards
