@@ -53,6 +53,8 @@ body {
   margin-bottom: 15px;
 }
 
+body,
+.new-board-panel,
 .board-card-panel {
   background-size: cover;
   background-position: center center;
@@ -100,7 +102,24 @@ body {
   }
 }
 
-.new-board-panel {
-  background-size: cover;
-  background-position: center center;
+@media (min-width: 768px) {
+  .board-right-side {
+    width: 232px;
+    float: right;
+  }
+  .board-left-side {
+    padding-right: 247px;
+  }
 }
+
+.task-buttons {
+  float: right;
+}
+
+.task-footer {
+  font-size: 10px;
+}
+
+.task-row-todo  {  }
+.task-row-doing { background: #d9edf7; }
+.task-row-done  { background: #dff0d8; }

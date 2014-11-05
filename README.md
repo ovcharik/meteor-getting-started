@@ -1422,4 +1422,11 @@ Template.newBoardForm.events
 ![new_board](https://raw.githubusercontent.com/ovcharik/meteor-getting-started/master/images/new_board.png)
 
 * [Результат](http://hgsm-boards.meteor.com/), загрузка картинок там не заработала, толи дело в ImageMagick, толи в невозможности создать свою директорию для хранения
-* [Репозитарий](https://github.com/ovcharik/meteor-getting-started/tree/xxx/todo-list)
+* [Репозитарий](https://github.com/ovcharik/meteor-getting-started/tree/8bc4dec60f3605e57f0a4330634980923a9925e5/todo-list)
+
+> В принципе это все что я хотел осветить в данном уроке, но для завершенности, доделаю функционал карточек в досках, там не будет использоваться что-то, чего нет в данном уроке. С изменениями можно как обычно ознакомится в [репозитарии](https://github.com/ovcharik/meteor-getting-started/tree/xxx/todo-list).
+
+![tasks](https://raw.githubusercontent.com/ovcharik/meteor-getting-started/master/images/tasks.png)
+
+* [Результат](http://hgsm-result.meteor.com/)
+* [Репозитарий](https://github.com/ovcharik/meteor-getting-started/tree/master/todo-list)

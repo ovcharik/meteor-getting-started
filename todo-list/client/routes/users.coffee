@@ -1,4 +1,4 @@
-# client/routers/users.coffee
+# client/routes/users.coffee
 Router.route '/users', name: 'users'
 class @UsersController extends PagableRouteController
 

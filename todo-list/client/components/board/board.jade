@@ -1,0 +1,54 @@
+//- client/components/board/board.jade
+template(name='board')
+  .board-right-side
+    h1 Users
+    ul.list-group
+      li.list-group-item
+        +usersAutocomplete class='form-control' placeholder='Add user' selected=userSelected
+      +each getUsers
+        li.list-group-item
+          +usersAutocompleteListItem
+
+  .board-left-side
+    h1= name
+    p= description
+    h1 Tasks
+    ul.list-group
+      li.list-group-item
+        form#addTask
+          input.form-control(type='text', name='task[text]', placeholder='New task')
+
+      li.list-group-item
+        .btn-group(data-toggle='buttons')
+          label.btn.btn-primary.active
+            input.Filter(type='radio', name='filter', autocomplete='off', value='all', checked)
+            | All
+          label.btn.btn-primary
+            input.Filter(type='radio', name='filter', autocomplete='off', value='todo')
+            | Todo
+          label.btn.btn-primary
+            input.Filter(type='radio', name='filter', autocomplete='off', value='doing')
+            | Doing
+          label.btn.btn-primary
+            input.Filter(type='radio', name='filter', autocomplete='off', value='done')
+            | Done
+
+      +each filteredTasks
+        li.list-group-item(class='task-row-{{state}}')
+          .task-buttons
+            .btn-group
+              unless isTodo
+                .btn.btn-default.ToTodo
+                  | ToDo
+              unless isDoing
+                .btn.btn-info.ToDoing
+                  | Doing
+              unless isDone
+                .btn.btn-success.ToDone
+                  | Done
+              .btn.btn-danger.Remove
+                | Remove
+          .task-body
+            = text
+          .task-footer
+            = createdAt.toLocaleString

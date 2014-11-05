@@ -98,6 +98,15 @@ Boards.helpers
       ]
     , options
 
+  getTasks:      (options={sort:{createdAt:-1}}) -> TasksCollection.find { board: @_id }, options
+  getTodoTasks:  (options={sort:{createdAt:-1}}) -> TasksCollection.find { board: @_id, state: 'todo'  }, options
+  getDoingTasks: (options={sort:{createdAt:-1}}) -> TasksCollection.find { board: @_id, state: 'doing' }, options
+  getDoneTasks:  (options={sort:{createdAt:-1}}) -> TasksCollection.find { board: @_id, state: 'done'  }, options
+
+  addTask: (task = {}, cb) ->
+    task.board = @_id
+    TasksCollection.insert task, cb
+
   urlData: ->
     id: @_id
 

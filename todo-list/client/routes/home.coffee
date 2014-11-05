@@ -1,4 +1,4 @@
-# client/routers/home.coffee
+# client/routes/home.coffee
 Router.route '/', name: 'home'
 class @HomeController extends BaseProfileController
 
