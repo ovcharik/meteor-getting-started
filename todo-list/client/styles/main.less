@@ -52,3 +52,48 @@ body {
 .row-bottom {
   margin-bottom: 15px;
 }
+
+.board-card-heading,
+.board-card-footer {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-card-description {
+  min-height: 80px;
+  max-height: 80px;
+  overflow-y: auto;
+  overflow-x: hidden
+}
+
+
+.user-autocomplete-item {
+  padding: 5px 10px;
+  min-width: 200px;
+}
+
+.user-autocomplete-avatar {
+  float: left;
+  width: 40px;
+}
+
+.user-autocomplete-info {
+  margin-left: 50px;
+}
+
+.user-autocomplete-name {
+  font-weight: bold;
+}
+
+.form-users-avatar {
+  padding: 5px;
+  
+  &:first-child {
+    padding-left: 0;
+  }
+  
+  &:last-child {
+    padding-right: 0;
+  }
+}

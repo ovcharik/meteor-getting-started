@@ -20,3 +20,10 @@ template(name='profile')
 
   .profile-right-side
     h1 Boards
+    .row
+      +each boards
+        .col-xs-6.col-md-4.col-lg-3
+          +boardCard
+    .row.row-bottom
+      .col-xs-12
+        +nextPageButton name='boards'

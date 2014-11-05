@@ -348,8 +348,8 @@ template(name='about')
 
 ![base_auth_form](https://raw.githubusercontent.com/ovcharik/meteor-getting-started/master/images/base_auth_form.png)
 
+* [Результат](http://hgsm-base-user-auth.meteor.com/)
 * [Репозиторий](https://github.com/ovcharik/meteor-getting-started/tree/78c28cce3af54989ca8c89c453e37c578e8f1d52/todo-list)
-* [Рабочая версия](http://hgsm-base-user-auth.meteor.com/)
 
 После конфигурации можем убедиться, что в токены авторизации сохранились.
 
@@ -977,7 +977,7 @@ Template.profile.helpers
     defaultValue: @getPublicEmail()
     placeholder: 'Public email'
     scope:       'user'
-    path:        'prfile.email'
+    path:        'profile.email'
     icon:        'envelope'
 
 Template.profile.events
@@ -1000,3 +1000,211 @@ Template.profile.events
 * [Репозитарий](https://github.com/ovcharik/meteor-getting-started/tree/2110ed5168155893fbaf27a29df0675070765d81/todo-list)
 
 Если вам что-то не понятно до текущего момента, то советую ознакомится с текущим состоянием проекта в [репозитарии](https://github.com/ovcharik/meteor-getting-started/tree/b1067c219e591de6d6eb387d10a107cfff180e69/todo-list), я старался комментировать в файлах все происходящее, также возможно стоит еще раз полистать написанное выше, может не совсем последовательно, но я старался уделить внимание всем ключевым моментам, и конечно же можно склонировать проект, на данном этапе и пощупать его руками. Дальше я собираюсь затронуть еще несколько тем: как создавать свои собственные коллекции, как можно защищать данные в коллекциях от нежелательного редактирования, расскажу немного про использование RPC и использование библиотек `npm` на сервере.
+
+## Еще про коллекции и подписки
+
+Прежде чем приступим к созданию своих коллекций предлагаю создать механизм, который будет автоматически вычислять некоторые поля при вставки/изменении данных в бд. Для этого добавим пакет [aldeed:collection2](https://github.com/aldeed/meteor-collection2), в который входит [aldeed:simple-schema](https://github.com/aldeed/meteor-simple-schema). Данные пакеты позволят нам легко валидировать данные, добавлять индексы к коллекции и прочее.
+
+Я привык создавать части приложения с минимальным функционалом, а какие-то сложные вещи уже комбинировать из них. Поэтому добавим к пакету `aldeed:simple-schema` немного новых возможностей.
+
+```coffeescipt
+# lib/simple_schema.coffee
+_.extend SimpleSchema,
+
+  # Данный метод будет из нескольких переданных объектов
+  # собирать одну схему и возвращать ее
+  build: (objects...) ->
+    result = {}
+    for obj in objects
+      _.extend result, obj
+    return new SimpleSchema result
+
+  # Если добавить к схеме данный объект,
+  # то у модели появится два поля которые будут автоматически
+  # вычисляться
+  timestamp:
+    createdAt:
+      type: Date
+      denyUpdate: true
+      autoValue: ->
+        if @isInsert
+          return new Date
+        if @isUpsert
+          return { $setOnInsert: new Date }
+        @unset()
+
+    updatedAt:
+      type: Date
+      autoValue: ->
+        new Date
+```
+
+И создадим новую коллекцию
+
+```coffeescript
+# collections/boards.coffee
+# схема данных
+boardsSchema = SimpleSchema.build SimpleSchema.timestamp,
+  'name':
+    type: String
+    index: true
+
+  'description':
+    type: String
+    optional: true # не обязательное поле
+
+  # автоматически генерируем автора доски
+  'owner':
+    type: String
+    autoValue: (doc) ->
+      if @isInsert
+        return @userId
+      if @isUpsert
+        return { $setOnInsert: @userId }
+      @unset()
+
+  # список пользователей доски
+  'users':
+    type: [String]
+    defaultValue: []
+
+  'users.$':
+    type: String
+    regEx: SimpleSchema.RegEx.Id
+
+
+# регистрируем коллекцию и добавляем схему
+Boards = new Meteor.Collection 'boards'
+Boards.attachSchema boardsSchema
+
+
+# защита данных
+Boards.allow
+  # создавать доски может любой авторизованный пользователь
+  insert: (userId, doc) ->
+    userId && true
+  # обновлять данные может только создатель доски
+  update: (userId, doc) ->
+    userId && userId == doc.owner
+
+
+# статические методы
+_.extend Boards,
+  findByUser: (userId = Meteor.userId(), options) ->
+    Boards.find
+      $or: [
+        { users: userId }
+        { owner: userId }
+      ]
+    , options
+
+  create: (data, cb) ->
+    Boards.insert data, cb
+
+# методы объектов
+Boards.helpers
+  update: (data, cb) ->
+    Boards.update @_id, data, cb
+
+  addUser: (user, cb) ->
+    user = user._id if _.isObject(user)
+    @update
+      $addToSet:
+        users: user
+    , cb
+
+  removeUser: (user, cb) ->
+    user = user._id if _.isObject(user)
+    @update
+      $pop:
+        users: user
+    , cb
+
+  updateName: (name, cb) ->
+    @update { $set: {name: name} }, cb
+
+  updateDescription: (desc, cb) ->
+    @update { $set: {description: desc} }, cb
+
+  # joins
+  getOwner: ->
+    UsersCollection.findOne @owner
+
+  getUsers: (options) ->
+    UsersCollection.find
+      $or: [
+        { _id: @owner }
+        { _id: { $in: @users } }
+      ]
+    , options
+
+  urlData: ->
+    id: @_id
+
+
+# экспорт
+@BoardsCollection = Boards
+```
+
+Первым делом при создании коллекции мы определили схему, это позволит нам валидировать данные и автоматически вычислять некоторые поля. Подробнее о валидации можно почитать на странице пакета [aldeed:simple-schema](https://github.com/aldeed/meteor-simple-schema), там достаточно богатый функционал, и даже при установки дополнительного пакета `aldeed:autoform`, можно генерировать формы, которые сразу же будут оповещать об ошибках, при создании записи.
+
+Новую коллекцию в бд мы создаем вызовом `Boards = new Meteor.Collection 'boards'`, если ее нет, либо подключаемся к существующей. В принципе это весь необходимый функционал для создания новых коллекций, там есть [еще пара](https://docs.meteor.com/#/full/mongo_collection) опций, которые можно указать при создании.
+
+С помощью метода `allow` у коллекции мы можем контролировать доступ к изменению данных в коллекции. В текущем примере мы запрещаем создавать новые записи в коллекции для всех неавторизованных пользователей, и разрешаем изменять данные только для создателя доски. Эти проверки будут осуществляться на сервере и можно не переживать, что какой-нибудь кулцхакер поменяет эту логику на клиенте. Также в вашем распоряжении есть практически аналогичный метод `deny`, думаю суть его ясна. Подробнее про [allow](https://docs.meteor.com/#/full/allow).
+
+При выводе карточки доски я хочу сразу отображать данные о создателе доски. Но если мы подпишемся только на доски, то эти данные поступать на клиент не будут. Однако публикации в метеоре дают возможность подписки на любые данные, даже автоматически вычисляемые, типа счетчиков коллекций и прочего.
+
+```coffeescript
+# server/publications/boards.coffee
+Meteor.publish 'boards', (userId, limit = 20) ->
+  findOptions =
+    limit: limit
+    sort: { createdAt: -1 }
+
+  if userId
+    # доски конкретного пользователя
+    cursor = BoardsCollection.findByUser userId, findOptions
+  else
+    # все доски
+    cursor = BoardsCollection.find {}, findOptions
+
+  inited = false
+  userFindOptions =
+    fields:
+      service: 1
+      username: 1
+      profile: 1
+
+  # колбек для добавления создателя доски к подписке
+  addUser = (id, fields) =>
+    if inited
+      userId = fields.owner
+      @added 'users', userId, UsersCollection.findOne(userId, userFindOptions)
+
+  # отслеживаем изменения в коллекции,
+  # что бы добавлять пользователей к подписке
+  handle = cursor.observeChanges
+    added: addUser
+    changed: addUser
+
+  inited = true
+  # при инициализации сразу же добавляем пользователей,
+  # при помощи одного запроса в бд
+  userIds = cursor.map (b) -> b.owner
+  UsersCollection.find({_id: { $in: userIds }}, userFindOptions).forEach (u) =>
+    @added 'users', u._id, u
+
+  # перестаем слушать курсор коллекции, при остановке подписки
+  @onStop ->
+    handle.stop()
+
+  return cursor
+```
+
+Так как монга не умеет делать запросы через несколько коллекций и выдавать уже обработанные данные, как это происходит в реляционных бд, нам придется доставать данные о создателей досок при помощи еще одного запроса, да и так удобнее работать в рамках моделей данных.
+
+Первым делом в зависимости от запроса мы достаем из базы нужные доски, после этого нам необходимо еще одним запросом достать пользователей. Методы `added`, `changed` и `removed` в контексте публикации могут управлять данными передаваемыми на клиент. Если мы в публикации возвращаем курсор коллекции, то эти методы будут вызываться автоматически в зависимости от состояния коллекции, поэтому мы и возвращаем курсор, но дополнительно в самой публикации подписываемся на изменения данных в коллекции досок, и высылаем на клиент данные о пользователях по мере необходимости.
+
+С помощью логов соединения по веб-сокетам либо при помощи [данной](https://github.com/arunoda/meteor-ddp-analyzer) утилиты, можно убедиться, что подобный подход будет работать оптимально. И тут важно понимать, что в нашем случае изменения в коллекции пользователей не будут синхронизироваться с клиентом, но так и задумывалось. Кстати для простого "джоина" можно просто возвращать массив на курсор.
+
+Для отображения досок пользователей, я добавил новые подписки в роутеры и заверстал необходимые шаблоны, но все эти моменты мы уже рассмотрели выше, если вам интересны все изменения, то их можно увидеть здесь.

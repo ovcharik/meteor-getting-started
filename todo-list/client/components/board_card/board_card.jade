@@ -1,0 +1,15 @@
+//- client/components/board_card/board_card.jade
+template(name='boardCard')
+  .panel.panel-default
+    .panel-heading.board-card-heading
+      +linkTo route='boards_show' data=urlData
+        = name
+    .panel-body.board-card-description
+      = description
+    .panel-footer.board-card-footer
+      +with getOwner
+        +userAvatar user=this size=20
+        +linkTo route='users_show' data=urlData
+          | @
+          = getUsername
+

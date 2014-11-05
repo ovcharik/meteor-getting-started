@@ -12,6 +12,16 @@ _.extend Users,
   findOneUser: (id, options) ->
     Users.findOne { $or: [ { _id: id }, { username: id } ] }, options
 
+  findAutocomplete: (q, options) ->
+    rg = new RegExp q, 'i'
+    Users.find
+      $or: [
+        { '_id'          : rg }
+        { 'username'     : rg }
+        { 'profile.name' : rg }
+      ]
+    , options
+
 # настройка коллекции
 Users.allow
   # разрешаем обновлять только указанные поля
@@ -69,7 +79,7 @@ Users.helpers
   getPublicEmail : -> @profile?.email
 
   urlData: ->
-    id: @getUsername()
+    id: @_id
 
   # вычисляем ссылку на граватар, на основе адреса почты
   # или хеша автоматически вычисленного при регистрации

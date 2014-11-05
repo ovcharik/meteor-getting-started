@@ -1,4 +1,4 @@
-# lib/pageable_route_controller.coffee
+# client/lib/pageable_route_controller.coffee
 varName = (inst, name = null) ->
   name = name && "_#{name}" || ""
   "#{inst.constructor.name}#{name}_limit"
@@ -10,12 +10,12 @@ class @PagableRouteController extends RouteController
 
   # количество загружаемых данных
   limit: (name = null) ->
-    Session.get(varName(@), name) || @perPage
+    Session.get(varName(@, name)) || @perPage
 
   # следующая страница
   incLimit: (name = null, inc = null) ->
     inc ||= @perPage
-    Session.set varName(@, name), (@limit() + inc)
+    Session.set varName(@, name), (@limit(name) + inc)
 
   # сборс количества
   resetLimit: (name = null) ->
