@@ -4,7 +4,7 @@
 
 Сразу хочу сказать, что у меня нет большого опыта в разработке веб приложений. Я занимаюсь этим всего около двух лет, а с метеором знаком вообще лишь пару месяцев.
 
-Еще хочу предупредить, что урок получился достаточно объемным, но кода в нем было написано в разы меньше, чем текста. Просто хочу поделиться опытом как можно использовать метеор при реальной разработке, а не при создании простенького примера, и заострить внимание на различных моментах, которые я посчитал важными. Поэтому в уроке будет использоваться множество сторонних пакетов, облегчающих процесс разработки.
+Еще хочу предупредить, что урок получился достаточно объемным, но кода в нем было написано в разы меньше, чем текста. Просто хочу поделиться опытом как можно использовать метеор не при создании простенького примера, и заострить внимание на различных моментах, которые я посчитал важными. Поэтому в уроке будет использоваться множество сторонних пакетов, облегчающих процесс разработки.
 
 И еще одно предупреждение: в данном уроке будут использоваться
 следующие технологии для непосредственного написания примера:
@@ -13,9 +13,9 @@
 * [less](http://lesscss.org/) - css препроцессор;
 * [coffeescript](http://coffeescript.org/) - язык программирования, компилируемый в javascript.
 
-Небольшая затравка в виде скриншота приложения, полученного в ходе урока
+Видео, демонстрирующее приложение, полученное в ходе урока
 
-![result](https://raw.githubusercontent.com/ovcharik/meteor-getting-started/master/images/result.png)
+[![result](http://img.youtube.com/vi/ATxB_CzCv8U/0.jpg)](http://www.youtube.com/watch?v=ATxB_CzCv8U)
 
 И кому все еще интересно, добро пожаловать под кат.
 
@@ -1007,7 +1007,7 @@ Template.profile.events
 
 Я привык создавать части приложения с минимальным функционалом, а какие-то сложные вещи уже комбинировать из них. Поэтому добавим к пакету `aldeed:simple-schema` немного новых возможностей.
 
-```coffeescipt
+```coffeescript
 # lib/simple_schema.coffee
 _.extend SimpleSchema,
 
@@ -1424,9 +1424,32 @@ Template.newBoardForm.events
 * [Результат](http://hgsm-boards.meteor.com/), загрузка картинок там не заработала, толи дело в ImageMagick, толи в невозможности создать свою директорию для хранения
 * [Репозитарий](https://github.com/ovcharik/meteor-getting-started/tree/8bc4dec60f3605e57f0a4330634980923a9925e5/todo-list)
 
-> В принципе это все что я хотел осветить в данном уроке, но для завершенности, доделаю функционал карточек в досках, там не будет использоваться что-то, чего нет в данном уроке. С изменениями можно как обычно ознакомится в [репозитарии](https://github.com/ovcharik/meteor-getting-started/tree/xxx/todo-list).
+В принципе это все, что я хотел осветить в данном уроке, но для завершенности, доделаю функционал карточек в досках, там не будет использоваться что-то, чего нет в данном уроке. С изменениями можно как обычно ознакомится в [репозитарии](https://github.com/ovcharik/meteor-getting-started/commit/2c65c13e1c4c8b8402b74f9fc3c67146a966d227).
 
 ![tasks](https://raw.githubusercontent.com/ovcharik/meteor-getting-started/master/images/tasks.png)
 
 * [Результат](http://hgsm-result.meteor.com/)
 * [Репозитарий](https://github.com/ovcharik/meteor-getting-started/tree/master/todo-list)
+
+## Ссылки
+
+* [Meteor](https://www.meteor.com/)
+  - [Документация](http://docs.meteor.com/);
+  - [Туториал](https://www.meteor.com/install) от разработчиков фреймворка;
+* [Atmosphere](https://atmospherejs.com/) - пакеты для метеора
+  - [mquandalle:jade](https://atmospherejs.com/mquandalle/jade) - пакет добавляющий возможность использовать jade разметку для шаблонов метеора
+  - [iron:router](https://atmospherejs.com/iron/router) - клиентский и серверный роутинг;
+  - [mizzao:bootstrap-3](https://atmospherejs.com/mizzao/bootstrap-3) - Twitter Bootstrap для метеора;
+  - [ian:accounts-ui-bootstrap-3](https://atmospherejs.com/ian/accounts-ui-bootstrap-3) - шаблоны на основе Twitter Bootstrap для форм входа и регистрации;
+  - [dburles:collection-helpers](https://atmospherejs.com/dburles/collection-helpers) - с помощью этого пакета можно добавить логику к объектам модели;
+  - [jparker:gravatar](https://atmospherejs.com/jparker/gravatar) - генерация ссылок на изображения в сервисе [Gravatar](http://ru.gravatar.com/);
+  - [aldeed:collection2](https://atmospherejs.com/aldeed/collection2) - дополнительные возможности к метеоровским коллекциям;
+  - [sergeyt:typeahead](https://atmospherejs.com/sergeyt/typeahead) - автокомплит для бутсрапа;
+  - [meteorhacks:npm](https://atmospherejs.com/meteorhacks/npm) - простая интеграция `npm` пакетов в метеор приложение;
+  - [CollectionFS](https://github.com/CollectionFS/Meteor-CollectionFS) - управление файлами;
+* Полезные ресурсы:
+  - [MeteorHacks](https://meteorhacks.com/) - сборник туториалов;
+  - [EventedMind](https://www.eventedmind.com/) - видео уроки;
+  - [Meteorpedia](http://www.meteorpedia.com/read/Main_Page) - неофициальная Wiki;
+  - [Еще множество ресурсов](https://github.com/ericdouglas/Meteor-Learning);
+* [Репозтарий](https://github.com/ovcharik/meteor-getting-started) проекта, разрабатываемого в этом уроке
