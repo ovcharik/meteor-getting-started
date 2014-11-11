@@ -21,7 +21,7 @@ tasksSchema = SimpleSchema.build SimpleSchema.timestamp,
     allowedValues: ['todo', 'doing', 'done']
     defaultValue: 'todo'
 
-Tasks = new Meteor.Collection 'tasks'
+Tasks = new Mongo.Collection 'tasks'
 Tasks.attachSchema tasksSchema
 
 if Meteor.isServer

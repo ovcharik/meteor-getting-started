@@ -34,7 +34,7 @@ boardsSchema = SimpleSchema.build SimpleSchema.timestamp,
 
 
 # регистрируем коллекцию и добавляем схему
-Boards = new Meteor.Collection 'boards'
+Boards = new Mongo.Collection 'boards'
 Boards.attachSchema boardsSchema
 
 
